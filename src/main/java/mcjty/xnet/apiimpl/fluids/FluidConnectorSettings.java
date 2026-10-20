@@ -155,15 +155,29 @@ public class FluidConnectorSettings extends AbstractConnectorSettings {
     }
 
 
+    /**
+     * Security: sanitize the rate coming from GUI sync, clipboard paste (JSON) or saved NBT.
+     * 0/negative means "unset" again; nothing may exceed the hard maximum of both config caps.
+     * The exact per-connector cap is enforced at transfer time in FluidChannelSettings.
+     */
+    @Nullable
+    private static Integer sanitizeRate(@Nullable Integer r) {
+        if (r == null || r <= 0) {
+            return null;
+        }
+        int hard = Math.max(ConfigSetup.maxFluidRateNormal.get(), ConfigSetup.maxFluidRateAdvanced.get());
+        return Math.min(r, hard);
+    }
+
     @Override
     public void update(Map<String, Object> data) {
         super.update(data);
         fluidMode = FluidMode.valueOf(((String)data.get(TAG_MODE)).toUpperCase());
-        rate = (Integer) data.get(TAG_RATE);
+        rate = sanitizeRate((Integer) data.get(TAG_RATE));
         minmax = (Integer) data.get(TAG_MINMAX);
         priority = (Integer) data.get(TAG_PRIORITY);
         speed = Integer.parseInt((String) data.get(TAG_SPEED)) / 10;
-        if (speed == 0) {
+        if (speed < 1 || speed > 20) {
             speed = 2;
         }
         filter = (ItemStack) data.get(TAG_FILTER);
@@ -198,9 +212,12 @@ public class FluidConnectorSettings extends AbstractConnectorSettings {
         super.readFromJsonInternal(object);
         fluidMode = getEnumSafe(object, "fluidmode", EnumStringTranslators::getFluidMode);
         priority = getIntegerSafe(object, "priority");
-        rate = getIntegerSafe(object, "rate");
+        rate = sanitizeRate(getIntegerSafe(object, "rate"));
         minmax = getIntegerSafe(object, "minmax");
         speed = getIntegerNotNull(object, "speed");
+        if (speed < 1 || speed > 20) {
+            speed = 2;
+        }
         if (object.has("filter")) {
             filter = ItemStackTools.jsonToItemStack(object.get("filter").getAsJsonObject());
         } else {
@@ -219,7 +236,7 @@ public class FluidConnectorSettings extends AbstractConnectorSettings {
             priority = null;
         }
         if (tag.hasKey("rate")) {
-            rate = tag.getInteger("rate");
+            rate = sanitizeRate(tag.getInteger("rate"));
         } else {
             rate = null;
         }
@@ -229,7 +246,7 @@ public class FluidConnectorSettings extends AbstractConnectorSettings {
             minmax = null;
         }
         speed = tag.getInteger("speed");
-        if (speed == 0) {
+        if (speed < 1 || speed > 20) {
             speed = 2;
         }
         if (tag.hasKey("filter")) {

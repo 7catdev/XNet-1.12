@@ -12,6 +12,7 @@ import mcjty.xnet.api.gui.IndicatorIcon;
 import mcjty.xnet.api.helper.DefaultChannelSettings;
 import mcjty.xnet.apiimpl.EnumStringTranslators;
 import mcjty.xnet.api.keys.SidedConsumer;
+import mcjty.xnet.blocks.cables.ConnectorBlock;
 import mcjty.xnet.config.ConfigSetup;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -124,7 +125,7 @@ public class FluidChannelSettings extends DefaultChannelSettings implements ICha
 
                     FluidStack extractMatcher = settings.getMatcher();
 
-                    int toextract = settings.getRate();
+                    int toextract = effectiveRate(settings, world, extractorPos);
 
                     Integer count = settings.getMinmax();
                     if (count != null) {
@@ -174,6 +175,16 @@ public class FluidChannelSettings extends DefaultChannelSettings implements ICha
         return matcher == null ? handler.drain(rate, !simulate) : handler.drain(new FluidStack(matcher, rate), !simulate);
     }
 
+    /**
+     * Security: never let a stored/pasted rate exceed the configured cap for this
+     * connector type. Bogus values (negative or above cap) fall back to the default cap.
+     */
+    private static int effectiveRate(FluidConnectorSettings settings, World world, BlockPos connectorPos) {
+        int cap = ConnectorBlock.isAdvancedConnector(world, connectorPos) ? ConfigSetup.maxFluidRateAdvanced.get() : ConfigSetup.maxFluidRateNormal.get();
+        int rate = settings.getRate();
+        return (rate <= 0 || rate > cap) ? cap : rate;
+    }
+
     // Returns what could not be filled
     private int insertFluidSimulate(@Nonnull List<Pair<SidedConsumer, FluidConnectorSettings>> inserted, @Nonnull IControllerContext context, @Nonnull FluidStack stack) {
         World world = context.getControllerWorld();
@@ -205,7 +216,7 @@ public class FluidChannelSettings extends DefaultChannelSettings implements ICha
                     IFluidHandler handler = getFluidHandlerAt(te, settings.getFacing());
                     // @todo report error somewhere?
                     if (handler != null) {
-                        int toinsert = Math.min(settings.getRate(), amount);
+                        int toinsert = Math.min(effectiveRate(settings, world, consumerPos), amount);
 
                         Integer count = settings.getMinmax();
                         if (count != null) {
@@ -256,7 +267,7 @@ public class FluidChannelSettings extends DefaultChannelSettings implements ICha
             TileEntity te = context.getControllerWorld().getTileEntity(pos);
             IFluidHandler handler = getFluidHandlerAt(te, settings.getFacing());
 
-            int toinsert = Math.min(settings.getRate(), amount);
+            int toinsert = Math.min(effectiveRate(settings, context.getControllerWorld(), consumerPosition), amount);
 
             Integer count = settings.getMinmax();
             if (count != null) {

@@ -118,11 +118,26 @@ public class EnergyConnectorSettings extends AbstractConnectorSettings {
         return minmax;
     }
 
+    /**
+     * Security: sanitize the rate coming from GUI sync, clipboard paste (JSON) or saved NBT.
+     * 0/negative means "unset" again; nothing may exceed the hard maximum of both config caps.
+     * The exact per-connector cap (normal vs advanced) is enforced at transfer time in
+     * EnergyChannelSettings, where the connector type is known.
+     */
+    @Nullable
+    private static Integer sanitizeRate(@Nullable Integer r) {
+        if (r == null || r <= 0) {
+            return null;
+        }
+        int hard = Math.max(ConfigSetup.maxRfRateNormal.get(), ConfigSetup.maxRfRateAdvanced.get());
+        return Math.min(r, hard);
+    }
+
     @Override
     public void update(Map<String, Object> data) {
         super.update(data);
         energyMode = EnergyMode.valueOf(((String)data.get(TAG_MODE)).toUpperCase());
-        rate = (Integer) data.get(TAG_RATE);
+        rate = sanitizeRate((Integer) data.get(TAG_RATE));
         minmax = (Integer) data.get(TAG_MINMAX);
         priority = (Integer) data.get(TAG_PRIORITY);
     }
@@ -146,7 +161,7 @@ public class EnergyConnectorSettings extends AbstractConnectorSettings {
         super.readFromJsonInternal(object);
         energyMode = getEnumSafe(object, "energymode", EnumStringTranslators::getEnergyMode);
         priority = getIntegerSafe(object, "priority");
-        rate = getIntegerSafe(object, "rate");
+        rate = sanitizeRate(getIntegerSafe(object, "rate"));
         minmax = getIntegerSafe(object, "minmax");
     }
 
@@ -160,7 +175,7 @@ public class EnergyConnectorSettings extends AbstractConnectorSettings {
             priority = null;
         }
         if (tag.hasKey("rate")) {
-            rate = tag.getInteger("rate");
+            rate = sanitizeRate(tag.getInteger("rate"));
         } else {
             rate = null;
         }

@@ -231,8 +231,9 @@ public class ItemConnectorSettings extends AbstractConnectorSettings {
         }
         stackMode = StackMode.valueOf(((String)data.get(TAG_STACK)).toUpperCase());
         speed = Integer.parseInt((String) data.get(TAG_SPEED)) / 5;
-        if (speed == 0) {
-            speed = 4;
+        // Security: speed must stay within the GUI-legal range (display 5..200 ticks -> raw 1..40)
+        if (speed < 1 || speed > 40) {
+            speed = 2;
         }
         oredictMode = Boolean.TRUE.equals(data.get(TAG_OREDICT));
         metaMode = Boolean.TRUE.equals(data.get(TAG_META));
@@ -241,7 +242,13 @@ public class ItemConnectorSettings extends AbstractConnectorSettings {
         blacklist = Boolean.TRUE.equals(data.get(TAG_BLACKLIST));
         priority = (Integer) data.get(TAG_PRIORITY);
         count = (Integer) data.get(TAG_COUNT);
+        if (count != null && count < 0) {
+            count = null;
+        }
         extractAmount = (Integer) data.get(TAG_EXTRACT_AMOUNT);
+        if (extractAmount != null && (extractAmount < 1 || extractAmount > 64)) {
+            extractAmount = null;
+        }
         for (int i = 0 ; i < FILTER_SIZE ; i++) {
             filters.set(i, (ItemStack) data.get(TAG_FILTER+i));
         }
@@ -287,8 +294,17 @@ public class ItemConnectorSettings extends AbstractConnectorSettings {
         blacklist = getBoolSafe(object, "blacklist");
         priority = getIntegerSafe(object, "priority");
         extractAmount = getIntegerSafe(object, "extractamount");
+        if (extractAmount != null && (extractAmount < 1 || extractAmount > 64)) {
+            extractAmount = null;
+        }
         count = getIntegerSafe(object, "count");
+        if (count != null && count < 0) {
+            count = null;
+        }
         speed = getIntegerNotNull(object, "speed");
+        if (speed < 1 || speed > 40) {
+            speed = 2;
+        }
         for (int i = 0 ; i < FILTER_SIZE ; i++) {
             if (object.has("filter" + i)) {
                 filters.set(i, ItemStackTools.jsonToItemStack(object.get("filter" + i).getAsJsonObject()));
@@ -315,6 +331,9 @@ public class ItemConnectorSettings extends AbstractConnectorSettings {
             }
             speed *= 2;
         }
+        if (speed < 1 || speed > 40) {
+            speed = 2;
+        }
         oredictMode = tag.getBoolean("oredictMode");
         metaMode = tag.getBoolean("metaMode");
         nbtMode = tag.getBoolean("nbtMode");
@@ -326,11 +345,17 @@ public class ItemConnectorSettings extends AbstractConnectorSettings {
         }
         if (tag.hasKey("extractAmount")) {
             extractAmount = tag.getInteger("extractAmount");
+            if (extractAmount != null && (extractAmount < 1 || extractAmount > 64)) {
+                extractAmount = null;
+            }
         } else {
             extractAmount = null;
         }
         if (tag.hasKey("count")) {
             count = tag.getInteger("count");
+            if (count != null && count < 0) {
+                count = null;
+            }
         } else {
             count = null;
         }

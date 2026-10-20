@@ -107,10 +107,13 @@ public class EnergyChannelSettings extends DefaultChannelSettings implements ICh
                         }
                     }
 
+                    boolean advanced = ConnectorBlock.isAdvancedConnector(world, connectorPos);
+                    int cap = advanced ? ConfigSetup.maxRfRateAdvanced.get() : ConfigSetup.maxRfRateNormal.get();
                     Integer rate = settings.getRate();
-                    if (rate == null) {
-                        boolean advanced = ConnectorBlock.isAdvancedConnector(world, connectorPos);
-                        rate = advanced ? ConfigSetup.maxRfRateAdvanced.get() : ConfigSetup.maxRfRateNormal.get();
+                    // Security: never let a stored/pasted rate exceed the configured cap.
+                    // Bogus values (negative or above cap) fall back to the default cap.
+                    if (rate == null || rate <= 0 || rate > cap) {
+                        rate = cap;
                     }
                     connectorTE.setEnergyInputFrom(side, rate);
 
@@ -193,10 +196,13 @@ public class EnergyChannelSettings extends DefaultChannelSettings implements ICh
                         }
                     }
 
+                    boolean advanced = ConnectorBlock.isAdvancedConnector(world, extractorPos);
+                    int cap = advanced ? ConfigSetup.maxRfRateAdvanced.get() : ConfigSetup.maxRfRateNormal.get();
                     Integer rate = settings.getRate();
-                    if (rate == null) {
-                        boolean advanced = ConnectorBlock.isAdvancedConnector(world, extractorPos);
-                        rate = advanced ? ConfigSetup.maxRfRateAdvanced.get() : ConfigSetup.maxRfRateNormal.get();
+                    // Security: cap enforced here (not just as default) so pasted/typed
+                    // out-of-range values can never actually transfer
+                    if (rate == null || rate <= 0 || rate > cap) {
+                        rate = cap;
                     }
                     int totransfer = Math.min(rate, energy);
                     long e = EnergyTools.receiveEnergy(te, settings.getFacing(), totransfer);
